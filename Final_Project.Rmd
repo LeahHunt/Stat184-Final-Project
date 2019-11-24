@@ -1,0 +1,22 @@
+---
+title: "Final Project: How Andrew McCutchen lost his mojo (and why we are all convinced it's because he cut his hair)"
+author: "Leah Hunt"
+output: html_notebook
+---
+###Introduction:
+In this project, we will be looking at the change in Andrew McCutchen's performance, primarily offensively and during his career with the Pirates. Our central question is how his statistics changed between the 2014 and 2015 seasons (i.e. when he cut his hair) and what factors may have contributed to his decline as a player.
+
+
+###Some Useful imports:
+
+
+
+###Scraping the Data:
+
+
+###Merging the tables to span multiple years
+
+
+
+
+
