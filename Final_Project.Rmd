@@ -89,6 +89,30 @@ merged_player_data <- allPlayers %>% left_join(translateIDs, by="playerID")
 merged_player_data<- merged_player_data %>% mutate(age = yearID - birthYear) %>% mutate(BA = H /(AB - BB)) %>% mutate(OBP = (BB + H)/AB)
 ```
 
+```{r}
+maxOBP<-merged_player_data%>% filter(AB>20)%>%group_by(playerID)%>%summarise(maxobp=max(OBP))
+maxBA<-merged_player_data%>% filter(AB>20)%>%group_by(playerID)%>%summarise(maxba=max(BA))
+
+merged_player_data<-merged_player_data%>%left_join(maxOBP, by="playerID")%>%left_join(maxBA, by="playerID")%>%mutate(BApercent = as.numeric(BA)/as.numeric(maxba))%>%mutate(OBPpercent = as.numeric(OBP)/as.numeric(maxobp))
+```
+
+```{r}
+merged_player_data%>% filter(AB > 20) %>% ggplot(aes(x=age, y=BApercent)) + geom_point(alpha=.03) + stat_smooth()+ylim(0,1)+xlim(18,32)
+```
+
+```{r}
+#merged_player_data%>% filter(AB > 20) %>% group_by(age)%>% summarise(avg = mean(BApercent, na.rm=TRUE))%>% ggplot(aes(x=age, y=avg)) + geom_point() + ylim(0,1)+xlim(18,32)
+
+merged_player_data%>% filter(AB > 20) %>%ggplot(aes(x = age, y = BApercent)) +
+  geom_bar(stat = "identity", alpha=0.2) +
+  geom_errorbar(aes(x = age, 
+                    ymax = max(BApercent), 
+                    ymin = min(BApercent), width=0.5)) +
+  geom_point(data= merged_player_data, aes(x=age, y=BApercent)) +
+  theme(axis.text.x = element_text(angle = 30, hjust=1))
+```
+
+
 
 
 
