@@ -8,13 +8,88 @@ In this project, we will be looking at the change in Andrew McCutchen's performa
 
 
 ###Some Useful imports:
-
+```{r}
+library('tidyverse')
+library('mosaic')
+library('DataComputing')
+library(rvest)
+```
 
 
 ###Scraping the Data:
+Let's start simple with a table of statistics broken up by year and team.
+```{r}
+page <- "https://www.baseball-reference.com/players/m/mccutan01-bat.shtml"
+aggregateStats <- page %>%
+  read_html() %>%
+  html_nodes(css = "table") %>%
+  html_table(fill = TRUE)
+
+head(aggregateStats[[1]])
+```
+This looks all fine, but check out the tail!
+```{r}
+tail(aggregateStats[[1]])
+```
+
+Holy untidy data Batman! The table includes a bunch of totals at the end that summarise the previous data. As it turns out, using the View function we can find that we really only want the first 18 rows.
+
+```{r}
+stats_by_season <- aggregateStats[[1]][1:18,]
+tail(stats_by_season)
+```
+ Let's get a little intuition about the year by year stats. I'm going to use OPS (the sum of on base and slugging percentage) since it factors in both getting on base and power. Let's color code points to what team he was on at the time (note that the majority of the plot occurs while he was with the Pirates).
+```{r}
+ stats_by_season %>% ggplot(aes(x=as.numeric(Year), y=OPS)) + geom_point(aes(color=Tm))+ stat_smooth() + xlab("Year")
+
+```
+
+Looking at the plot, we see a clear peak around 2013-2014. In fact, looking at some of the other common batting statistics, we see a similar pattern in all of them.
+
+```{r}
+ stats_by_season %>% ggplot(aes(x=as.numeric(Year), y=OBP)) + geom_point(aes(color=Tm))+ stat_smooth() + xlab("Year")
+
+```
+
+```{r}
+ stats_by_season %>% ggplot(aes(x=as.numeric(Year), y=BA)) + geom_point(aes(color=Tm))+ stat_smooth() + xlab("Year")
+
+```
+
+```{r}
+ stats_by_season %>% ggplot(aes(x=as.numeric(Year), y=SLG)) + geom_point(aes(color=Tm))+ stat_smooth() + xlab("Year")
+
+```
+
+Many Pirates fans could tell you that this pattern existed. But why? To the casual observer, there is one obvious thing that changed between 2014 and 2015: he cut his hair and obviously then lost his mojo because of it. That being said, there are several other factors, for example he was married between those same two seasons. 
+
+Another factor is age. Let's see how his age peak compares with other baseball players.
+
+###Peak ages of MLB players
+```{r}
+id <- "10PK1Kne2e2shLERd3y19DGU7VcXhPmcB" # google file ID
+allPlayers<-read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download", id)) 
+glimpse(allPlayers)
+```
+```{r}
+playerIDs <- read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download",'187HgaVhV0-ADZm5GY4ZhnVDjw2Fzrc8F'))
+glimpse(playerIDs)
+
+```
+
+```{r}
+translateIDs<- playerIDs[,c("playerID","birthYear", "nameFirst", "nameLast")]
+```
 
 
-###Merging the tables to span multiple years
+```{r}
+merged_player_data <- allPlayers %>% left_join(translateIDs, by="playerID")
+```
+```{r}
+merged_player_data<- merged_player_data %>% mutate(age = yearID - birthYear) %>% mutate(BA = H /(AB - BB)) %>% mutate(OBP = (BB + H)/AB)
+```
+
+
 
 
 
