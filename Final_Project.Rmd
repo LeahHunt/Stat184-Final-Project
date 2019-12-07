@@ -13,6 +13,7 @@ library('tidyverse')
 library('mosaic')
 library('DataComputing')
 library(rvest)
+library(party)
 ```
 
 
@@ -38,7 +39,9 @@ Holy untidy data Batman! The table includes a bunch of totals at the end that su
 stats_by_season <- aggregateStats[[1]][1:18,]
 tail(stats_by_season)
 ```
- Let's get a little intuition about the year by year stats. I'm going to use OPS (the sum of on base and slugging percentage) since it factors in both getting on base and power. Let's color code points to what team he was on at the time (note that the majority of the plot occurs while he was with the Pirates).
+But this isn't the end of our tidy data problems! The last two columns are also untidy.
+
+Let's get a little intuition about the year by year stats. I'm going to use OPS (the sum of on base and slugging percentage) since it factors in both getting on base and power. Let's color code points to what team he was on at the time (note that the majority of the plot occurs while he was with the Pirates).
 ```{r}
  stats_by_season %>% ggplot(aes(x=as.numeric(Year), y=OPS)) + geom_point(aes(color=Tm))+ stat_smooth() + xlab("Year")
 
@@ -61,7 +64,9 @@ Looking at the plot, we see a clear peak around 2013-2014. In fact, looking at s
 
 ```
 
-Many Pirates fans could tell you that this pattern existed. But why? To the casual observer, there is one obvious thing that changed between 2014 and 2015: he cut his hair and obviously then lost his mojo because of it. That being said, there are several other factors, for example he was married between those same two seasons. 
+Many Pirates fans could tell you that this pattern existed. But why? To the casual observer, there is one obvious thing that changed between 2014 and 2015: he cut his hair and obviously then lost his mojo because of it. While this explanation may appeal to the common person, as statisticians, we reserve the right to be skeptical, so let's look for another potential factor. 
+
+The most obvious factor that may come to mind is that he also got married between these two seasons. While this factor will not be considered in this analysis, in other analyses, marraige has not been shown to correlate with better statistics (see: ![http://ftp.iza.org/dp5695.pdf])
 
 Another factor is age. Let's see how his age peak compares with other baseball players.
 
@@ -89,6 +94,20 @@ merged_player_data <- allPlayers %>% left_join(translateIDs, by="playerID")
 merged_player_data<- merged_player_data %>% mutate(age = yearID - birthYear) %>% mutate(BA = H /(AB - BB)) %>% mutate(OBP = (BB + H)/AB)
 ```
 
+
+
+
+THIS IS A WORK IN PROGRESS
+```{r}
+CompleteCases <- merged_player_data %>% filter(AB>20) %>% select(BA, age, yearID, OBP)%>% na.omit()
+
+useful_predictors<-party::ctree(BA~OBP,  data=CompleteCases)
+
+#f<-funCT(useful_predictors)
+plot(useful_predictors, type='simple')
+```
+
+
 ```{r}
 maxOBP<-merged_player_data%>% filter(AB>20)%>%group_by(playerID)%>%summarise(maxobp=max(OBP))
 maxBA<-merged_player_data%>% filter(AB>20)%>%group_by(playerID)%>%summarise(maxba=max(BA))
@@ -103,16 +122,49 @@ merged_player_data%>% filter(AB > 20) %>% ggplot(aes(x=age, y=BApercent)) + geom
 ```{r}
 #merged_player_data%>% filter(AB > 20) %>% group_by(age)%>% summarise(avg = mean(BApercent, na.rm=TRUE))%>% ggplot(aes(x=age, y=avg)) + geom_point() + ylim(0,1)+xlim(18,32)
 
-merged_player_data%>% filter(AB > 20) %>%ggplot(aes(x = age, y = BApercent)) +
+merged_player_data%>% filter(AB > 20) %>% group_by(age)%>% summarise(se=sd(BApercent, na.rm = TRUE) / sqrt(n()), BApercent=mean(BApercent, na.rm=TRUE))  %>%ggplot(aes(x = age, y = BApercent)) +
   geom_bar(stat = "identity", alpha=0.2) +
   geom_errorbar(aes(x = age, 
-                    ymax = max(BApercent), 
-                    ymin = min(BApercent), width=0.5)) +
-  geom_point(data= merged_player_data, aes(x=age, y=BApercent)) +
+                    ymax = BApercent+2*se , 
+                    ymin = BApercent-2*se , width=0.5)) +
+  geom_point(aes(x=age, y=BApercent)) +
   theme(axis.text.x = element_text(angle = 30, hjust=1))
 ```
 
 
+```{r}
+
+stats_by_season<-stats_by_season%>%mutate(Age = as.numeric(Age))
+```
+
+Now we want to merge our McCutchen data and the general data so that we can compare them. In the process, it would be a good idea to rename all our McCutchen data to make it clear which columns deal with him individually and which ones are overall. (Translation: I tried it without renaming the columns then monumentally confused myself, so we're just going to rename them.)
+```{r}
+#loop over column names and change each to add an M (i.e. make the dataframe WAY easier to read)
+stats_by_season_renamed<-stats_by_season
+
+for (colname in colnames(stats_by_season)){
+  colnames(stats_by_season_renamed)[colnames(stats_by_season)==colname]<-paste(colname,'_M', sep='')
+   #stats_by_season_renamed<-stats_by_season_renamed%>%
+    # rename(paste(colname,'_M') = colname)
+}
+```
+```{r}
+merged_player_data_with_McCutchen <- merged_player_data %>% filter(AB > 20) %>% group_by(age)%>% summarise(se=sd(BApercent, na.rm = TRUE) / sqrt(n()), BApercent=mean(BApercent, na.rm=TRUE))  %>% left_join(stats_by_season_renamed, by=c('age'='Age_M'))
+
+```
+
+```{r}
+merged_player_data_with_McCutchen<-merged_player_data_with_McCutchen%>% mutate(BApercent_M = as.numeric(BA_M)/.327)
+```
+
+```{r}
+merged_player_data_with_McCutchen %>% mutate(difference = BApercent_M-BApercent)%>%filter(age>17 & age<33) %>%ggplot()  +
+  geom_point(aes(x=age, y=BApercent, color='r')) + geom_point(aes(x=age, y=BApercent_M, color='b'))+ stat_smooth(aes(x=age, y=BApercent))+ stat_smooth(aes(x=age, y=BApercent_M))
+  theme(axis.text.x = element_text(angle = 30, hjust=1))
+```
+Hmmm... well that's not too helpful. Note that we are losing a lot of variance.
+
+TRY RANKING THEM THEN PLOTTING THE RANKINGS
 
 
 
