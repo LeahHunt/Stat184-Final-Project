@@ -39,72 +39,55 @@ Holy untidy data Batman! The table includes a bunch of totals at the end that su
 stats_by_season <- aggregateStats[[1]][1:18,]
 tail(stats_by_season)
 ```
-But this isn't the end of our tidy data problems! The last two columns are also untidy.
+But this isn't the end of our tidy data problems! The last two columns are also untidy. The last column shows any awards he won in the year. While this would likely correlate with his performance, we would expect the awards he recieved to be caused by his performance as opposed to the other way around, so we can pretty safely ignore that column. The positions he played, however, could be interesting. These are represented in the second to last column but are coded into a string of characters. The characters can be decoded as follows: numbers represent positions (by standard convention), * indicates that the position was played in at least 2/3 of games, / indicates that the position was played less than 10 games, and D indicates being the DH (designated hitter). 
 
-Let's get a little intuition about the year by year stats. I'm going to use OPS (the sum of on base and slugging percentage) since it factors in both getting on base and power. Let's color code points to what team he was on at the time (note that the majority of the plot occurs while he was with the Pirates).
 ```{r}
- stats_by_season %>% ggplot(aes(x=as.numeric(Year), y=OPS)) + geom_point(aes(color=Tm))+ stat_smooth() + xlab("Year")
+stats_by_season%>%mutate(Pos=ifelse(grepl("\\*.", Pos),substring(Pos, 2,2), 0))%>%ggplot(aes(x=Year, y=Pos)) + geom_point() #Makes use of the fact that primary positions are listed first and are unique if they exist
+```
+
+After decoding the primary positions (0 indicates that no single position was played in more than 2/3 of games), we see that his primary position was center field throughout the entire time period in question. So now we need to find a new factor to consider. 
+
+
+To help us figure out which factors may be helpful to consider, let's get a little intuition about the year by year stats. Let's look at 4 major measures of batting performance: BA, OBP, OPS, and slugging percentage. 
+
+```{r}
+stats_by_season%>%
+  gather(key=type, value=value, BA, OBP, OPS, SLG)%>%  #We have to gether the BA, OBP, OPS, and SLG in order to use them for faceting
+  ggplot(aes(x=as.numeric(Year), y=value)) + 
+    geom_point(aes(color=Tm))+ 
+    facet_wrap(~ type,ncol=2)+ 
+    stat_smooth() + xlab("Year")
 
 ```
 
-Looking at the plot, we see a clear peak around 2013-2014. In fact, looking at some of the other common batting statistics, we see a similar pattern in all of them.
+We notice that all four of these have similar shape, so it is fair to assume that we can narrow down to just one or two. (For this analysis, we will focus on BA and OBP since they are the simplest to calculate and most widely known.)
 
-```{r}
- stats_by_season %>% ggplot(aes(x=as.numeric(Year), y=OBP)) + geom_point(aes(color=Tm))+ stat_smooth() + xlab("Year")
-
-```
-
-```{r}
- stats_by_season %>% ggplot(aes(x=as.numeric(Year), y=BA)) + geom_point(aes(color=Tm))+ stat_smooth() + xlab("Year")
-
-```
-
-```{r}
- stats_by_season %>% ggplot(aes(x=as.numeric(Year), y=SLG)) + geom_point(aes(color=Tm))+ stat_smooth() + xlab("Year")
-
-```
 
 Many Pirates fans could tell you that this pattern existed. But why? To the casual observer, there is one obvious thing that changed between 2014 and 2015: he cut his hair and obviously then lost his mojo because of it. While this explanation may appeal to the common person, as statisticians, we reserve the right to be skeptical, so let's look for another potential factor. 
 
 The most obvious factor that may come to mind is that he also got married between these two seasons. While this factor will not be considered in this analysis, in other analyses, marraige has not been shown to correlate with better statistics (see: ![http://ftp.iza.org/dp5695.pdf])
 
-Another factor is age. Let's see how his age peak compares with other baseball players.
+Another pattern we may notice is that while the decline was most noticable between 2014 and 2015, there is actually a more general curving trend that just peaks in 2014. This may lead us to consider age as a factor to the performance drop. 
 
 ###Peak ages of MLB players
+To see how age may be playing a role in performance, let's get data from more MLB players to compare McCutchen's performance to.
 ```{r}
 id <- "10PK1Kne2e2shLERd3y19DGU7VcXhPmcB" # google file ID
 allPlayers<-read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download", id)) 
 glimpse(allPlayers)
 ```
+
+In order to find age, we are also going to need the birthdays of players, which we can use this next dataset for.
 ```{r}
 playerIDs <- read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download",'187HgaVhV0-ADZm5GY4ZhnVDjw2Fzrc8F'))
 glimpse(playerIDs)
-
-```
-
-```{r}
 translateIDs<- playerIDs[,c("playerID","birthYear", "nameFirst", "nameLast")]
 ```
 
-
+Now let's merge our new datasets.
 ```{r}
 merged_player_data <- allPlayers %>% left_join(translateIDs, by="playerID")
-```
-```{r}
-merged_player_data<- merged_player_data %>% mutate(age = yearID - birthYear) %>% mutate(BA = H /(AB - BB)) %>% mutate(OBP = (BB + H)/AB)
-```
-
-
-
-
-THIS IS A WORK IN PROGRESS
-```{r}
-CompleteCases <- merged_player_data %>% filter(AB>20) %>% select(BA, age, yearID, OBP)%>% na.omit()
-
-useful_predictors<-party::ctree(BA~OBP,  data=CompleteCases)
-
-#f<-funCT(useful_predictors)
-plot(useful_predictors, type='simple')
+merged_player_data<- merged_player_data %>% mutate(age = yearID - birthYear) %>% mutate(BA = H /(AB - BB)) %>% mutate(OBP = (BB + H)/AB)#adds age, batting average, and on base percentage.
 ```
 
 
