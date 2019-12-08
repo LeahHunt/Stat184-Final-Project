@@ -103,7 +103,7 @@ Now let's see the distribution over all players. Since McCutchen only played fro
 ```{r}
 #merged_player_data%>% filter(AB > 20) %>% group_by(age)%>% summarise(avg = mean(BApercent, na.rm=TRUE))%>% ggplot(aes(x=age, y=avg)) + geom_point() + ylim(0,1)+xlim(18,32)
 
-merged_player_data%>% filter(AB > 20) %>% group_by(age) %>%filter(age>17 & age<33) %>% summarise(se=sd(BApercent, na.rm = TRUE) / sqrt(n()), BApercent=mean(BApercent, na.rm=TRUE))  %>%ggplot(aes(x = age, y = BApercent)) +
+merged_player_data%>% filter(AB > 20) %>% group_by(age) %>%filter(age>17 & age<33) %>% summarise(se=sd(BApercent, na.rm = TRUE) / sqrt(n()), BApercent=mean(BApercent, na.rm=TRUE), OBPpercent=mean(OBPpercent, na.rm=TRUE))  %>%ggplot(aes(x = age, y = OBPpercent)) +
   geom_smooth() +
   geom_errorbar(aes(x = age, 
                     ymax = BApercent+2*se , 
@@ -129,12 +129,12 @@ for (colname in colnames(stats_by_season)){
 }
 ```
 ```{r}
-merged_player_data_with_McCutchen <- merged_player_data %>% filter(AB > 20) %>% group_by(age)%>% summarise(se=sd(BApercent, na.rm = TRUE) / sqrt(n()), BApercent=mean(BApercent, na.rm=TRUE))  %>% left_join(stats_by_season_renamed, by=c('age'='Age_M'))
+merged_player_data_with_McCutchen <- merged_player_data %>% filter(AB > 20) %>% group_by(age)%>% summarise(se=sd(BApercent, na.rm = TRUE) / sqrt(n()), BApercent=mean(BApercent, na.rm=TRUE), seOBP = sd(OBPpercent, na.rm = TRUE), OBPpercent=mean(OBPpercent, na.rm=TRUE))  %>% left_join(stats_by_season_renamed, by=c('age'='Age_M'))
 
 ```
 
 ```{r}
-merged_player_data_with_McCutchen<-merged_player_data_with_McCutchen%>% mutate(BApercent_M = as.numeric(BA_M)/.327)
+merged_player_data_with_McCutchen<-merged_player_data_with_McCutchen%>% mutate(BApercent_M = as.numeric(BA_M)/.327, OBPpercent_M = as.numeric(OBP_M)/.410)
 ```
 
 ```{r}
@@ -142,6 +142,12 @@ merged_player_data_with_McCutchen %>% mutate(difference = BApercent_M-BApercent)
   geom_point(aes(x=age, y=BApercent, color='r')) + geom_point(aes(x=age, y=BApercent_M, color='b'))+ stat_smooth(aes(x=age, y=BApercent))+ stat_smooth(aes(x=age, y=BApercent_M))
   theme(axis.text.x = element_text(angle = 30, hjust=1))
 ```
+```{r}
+merged_player_data_with_McCutchen %>% mutate(difference = OBPpercent_M-OBPpercent)%>%filter(age>17 & age<33) %>%ggplot()  +
+  geom_point(aes(x=age, y=OBPpercent, color='r')) + geom_point(aes(x=age, y=OBPpercent_M, color='b'))+ stat_smooth(aes(x=age, y=OBPpercent))+ stat_smooth(aes(x=age, y=OBPpercent_M))
+  theme(axis.text.x = element_text(angle = 30, hjust=1))
+```
+
 It appears that the peaks are similar, but there is a lot more variation in McCutchen's data. Another approach we could take would be to just consider peak year.
 
 ```{r}
@@ -155,5 +161,10 @@ merged_player_data<-merged_player_data%>%left_join(maxOBP, by="playerID")%>%left
 merged_player_data%>%filter(AB>20)%>%filter(OBP==maxobp)%>%ggplot()+geom_histogram(aes(age))
 ```
 
+```{r}
+merged_player_data%>%filter(AB>20)%>%filter(BA==maxba)%>%ggplot()+geom_histogram(aes(age))
+```
+According to both of these, 2014-2015 would mark right around the average peak time, which further confirms age as a significant factor. 
 
-
+###Conclusion
+Though McCutchen cut his hair, he didn't lose his mojo; he just got old.
