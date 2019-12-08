@@ -90,7 +90,7 @@ merged_player_data <- allPlayers %>% left_join(translateIDs, by="playerID")
 merged_player_data<- merged_player_data %>% mutate(age = yearID - birthYear) %>% mutate(BA = H /(AB - BB)) %>% mutate(OBP = (BB + H)/AB)#adds age, batting average, and on base percentage.
 ```
 
-
+Now it would be nice to have a way of normalizing the BA and OBP. Let's do this by taking each BA and OBP as a percentage of that player's maximum over all seasons they played.
 ```{r}
 maxOBP<-merged_player_data%>% filter(AB>20)%>%group_by(playerID)%>%summarise(maxobp=max(OBP))
 maxBA<-merged_player_data%>% filter(AB>20)%>%group_by(playerID)%>%summarise(maxba=max(BA))
@@ -98,25 +98,22 @@ maxBA<-merged_player_data%>% filter(AB>20)%>%group_by(playerID)%>%summarise(maxb
 merged_player_data<-merged_player_data%>%left_join(maxOBP, by="playerID")%>%left_join(maxBA, by="playerID")%>%mutate(BApercent = as.numeric(BA)/as.numeric(maxba))%>%mutate(OBPpercent = as.numeric(OBP)/as.numeric(maxobp))
 ```
 
-```{r}
-merged_player_data%>% filter(AB > 20) %>% ggplot(aes(x=age, y=BApercent)) + geom_point(alpha=.03) + stat_smooth()+ylim(0,1)+xlim(18,32)
-```
+Now let's see the distribution over all players. Since McCutchen only played from ages 18-32 so far, we can limit our the ages to just those.
 
 ```{r}
 #merged_player_data%>% filter(AB > 20) %>% group_by(age)%>% summarise(avg = mean(BApercent, na.rm=TRUE))%>% ggplot(aes(x=age, y=avg)) + geom_point() + ylim(0,1)+xlim(18,32)
 
-merged_player_data%>% filter(AB > 20) %>% group_by(age)%>% summarise(se=sd(BApercent, na.rm = TRUE) / sqrt(n()), BApercent=mean(BApercent, na.rm=TRUE))  %>%ggplot(aes(x = age, y = BApercent)) +
-  geom_bar(stat = "identity", alpha=0.2) +
+merged_player_data%>% filter(AB > 20) %>% group_by(age) %>%filter(age>17 & age<33) %>% summarise(se=sd(BApercent, na.rm = TRUE) / sqrt(n()), BApercent=mean(BApercent, na.rm=TRUE))  %>%ggplot(aes(x = age, y = BApercent)) +
+  geom_smooth() +
   geom_errorbar(aes(x = age, 
                     ymax = BApercent+2*se , 
                     ymin = BApercent-2*se , width=0.5)) +
   geom_point(aes(x=age, y=BApercent)) +
-  theme(axis.text.x = element_text(angle = 30, hjust=1))
+  theme(axis.text.x = element_text(angle = 30, hjust=1)) + ylim(.6, .9)
 ```
-
+This looks similar to pattern we observed from McCutchen, but it would be helpful to actually show them side-by-side.
 
 ```{r}
-
 stats_by_season<-stats_by_season%>%mutate(Age = as.numeric(Age))
 ```
 
@@ -145,12 +142,18 @@ merged_player_data_with_McCutchen %>% mutate(difference = BApercent_M-BApercent)
   geom_point(aes(x=age, y=BApercent, color='r')) + geom_point(aes(x=age, y=BApercent_M, color='b'))+ stat_smooth(aes(x=age, y=BApercent))+ stat_smooth(aes(x=age, y=BApercent_M))
   theme(axis.text.x = element_text(angle = 30, hjust=1))
 ```
-Hmmm... well that's not too helpful. Note that we are losing a lot of variance.
+It appears that the peaks are similar, but there is a lot more variation in McCutchen's data. Another approach we could take would be to just consider peak year.
 
-TRY RANKING THEM THEN PLOTTING THE RANKINGS
+```{r}
+maxYearsBA<-merged_player_data%>% filter(AB>20)%>%group_by(playerID)%>%summarise(maxobp=max(OBP))
+maxYearsOBP<-merged_player_data%>% filter(AB>20)%>%group_by(playerID)%>%summarise(maxba=max(BA))
 
+merged_player_data<-merged_player_data%>%left_join(maxOBP, by="playerID")%>%left_join(maxBA, by="playerID")%>%mutate(BApercent = as.numeric(BA)/as.numeric(maxba))%>%mutate(OBPpercent = as.numeric(OBP)/as.numeric(maxobp))
+```
 
-
+```{r}
+merged_player_data%>%filter(AB>20)%>%filter(OBP==maxobp)%>%ggplot()+geom_histogram(aes(age))
+```
 
 
 
