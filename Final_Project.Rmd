@@ -139,12 +139,12 @@ merged_player_data_with_McCutchen<-merged_player_data_with_McCutchen%>% mutate(B
 
 ```{r}
 merged_player_data_with_McCutchen %>% mutate(difference = BApercent_M-BApercent)%>%filter(age>17 & age<33) %>%ggplot()  +
-  geom_point(aes(x=age, y=BApercent, color='r')) + geom_point(aes(x=age, y=BApercent_M, color='b'))+ stat_smooth(aes(x=age, y=BApercent))+ stat_smooth(aes(x=age, y=BApercent_M))
+  geom_point(aes(x=age, y=BApercent), color='red') + geom_point(aes(x=age, y=BApercent_M),color='blue')+ stat_smooth(aes(x=age, y=BApercent), color='red', se=FALSE)+ stat_smooth(aes(x=age, y=BApercent_M), se=FALSE) + geom_vline(xintercept=22)+ geom_vline(xintercept=31)+ geom_vline(xintercept=27, linetype="dotted")+ ylim(.7,1)
   theme(axis.text.x = element_text(angle = 30, hjust=1))
 ```
 ```{r}
 merged_player_data_with_McCutchen %>% mutate(difference = OBPpercent_M-OBPpercent)%>%filter(age>17 & age<33) %>%ggplot()  +
-  geom_point(aes(x=age, y=OBPpercent, color='r')) + geom_point(aes(x=age, y=OBPpercent_M, color='b'))+ stat_smooth(aes(x=age, y=OBPpercent))+ stat_smooth(aes(x=age, y=OBPpercent_M))
+  geom_point(aes(x=age, y=OBPpercent), color='red') + geom_point(aes(x=age, y=OBPpercent_M), color='blue')+ stat_smooth(aes(x=age, y=OBPpercent), color='red', se=FALSE)+ stat_smooth(aes(x=age, y=OBPpercent_M), se=FALSE)+ geom_vline(xintercept=22)+ geom_vline(xintercept=31)+ geom_vline(xintercept=27, linetype="dotted")
   theme(axis.text.x = element_text(angle = 30, hjust=1))
 ```
 
