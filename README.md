@@ -34,4 +34,36 @@ Your Pages site will use the layout and styles from the Jekyll theme you have se
 
 ### Support or Contact
 
-Having trouble with Pages? Check out our [documentation](https://help.github.com/categories/github-pages-basics/) or [contact support](https://github.com/contact) and we’ll help you sort it out.
+---
+title: "Final Project: How Andrew McCutchen lost his mojo (and why we are all convinced it's because he cut his hair)"
+author: "Leah Hunt"
+output: html_notebook
+---
+###Introduction:
+In this project, we will be looking at the change in Andrew McCutchen's performance, primarily offensively and during his career with the Pirates. Our central question is how his statistics changed between the 2014 and 2015 seasons (i.e. when he cut his hair) and what factors may have contributed to his decline as a player.
+
+
+###Clean Up Environment and Useful imports:
+```{r}
+rm(list = ls())
+library('tidyverse')
+library('mosaic')
+library('DataComputing')
+library(rvest)
+library(party)
+```
+
+
+###Scraping the Data:
+Let's start simple with a table shown McCutchen's statistics broken down by year and team.
+```{r}
+page <- 
+  "https://www.baseball-reference.com/players/m/mccutan01-bat.shtml"
+aggregateStats <- 
+  page %>%
+  read_html() %>%
+  html_nodes(css = "table") %>%
+  html_table(fill = TRUE)
+
+head(aggregateStats[[1]])
+```
