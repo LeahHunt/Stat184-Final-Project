@@ -7,8 +7,9 @@ output: html_notebook
 In this project, we will be looking at the change in Andrew McCutchen's performance, primarily offensively and during his career with the Pirates. Our central question is how his statistics changed between the 2014 and 2015 seasons (i.e. when he cut his hair) and what factors may have contributed to his decline as a player.
 
 
-###Some Useful imports:
+###Clean Up Environment and Useful imports:
 ```{r}
+rm(list = ls())
 library('tidyverse')
 library('mosaic')
 library('DataComputing')
@@ -20,8 +21,10 @@ library(party)
 ###Scraping the Data:
 Let's start simple with a table shown McCutchen's statistics broken down by year and team.
 ```{r}
-page <- "https://www.baseball-reference.com/players/m/mccutan01-bat.shtml"
-aggregateStats <- page %>%
+page <- 
+  "https://www.baseball-reference.com/players/m/mccutan01-bat.shtml"
+aggregateStats <- 
+  page %>%
   read_html() %>%
   html_nodes(css = "table") %>%
   html_table(fill = TRUE)
@@ -36,13 +39,17 @@ tail(aggregateStats[[1]])
 Holy untidy data Batman! The table includes a bunch of totals at the end that summarise the previous data. As it turns out, using the View function we can find that we really only want the first 18 rows.
 
 ```{r}
-stats_by_season <- aggregateStats[[1]][1:18,]
+stats_by_season <- 
+  aggregateStats[[1]][1:18,]
 tail(stats_by_season)
 ```
 But this isn't the end of our tidy data problems! The last two columns are also untidy. The last column shows any awards he won in the year. While this would likely correlate with his performance, we would expect the awards he recieved to be caused by his performance as opposed to the other way around, so we can pretty safely ignore that column. The positions he played, however, could be interesting. These are represented in the second to last column but are coded into strings of characters. The characters can be decoded as follows: numbers represent positions (by standard convention), * indicates that the position was played in at least 2/3 of games, / indicates that the position was played less than 10 games, and D indicates being the DH (designated hitter). 
 
 ```{r}
-stats_by_season%>%mutate(Pos=ifelse(grepl("\\*.", Pos),substring(Pos, 2,2), 0))%>%ggplot(aes(x=Year, y=Pos)) + geom_point() #Makes use of the fact that primary positions are listed first and are unique if they exist
+stats_by_season %>%
+  mutate(Pos = ifelse(grepl("\\*.", Pos), substring(Pos, 2, 2), 0)) %>%#Makes use of the fact that primary positions are listed first and are unique if they exist
+  ggplot(aes(x = Year, y = Pos)) + 
+    geom_point() 
 ```
 
 After decoding the primary positions (0 indicates that no single position was played in more than 2/3 of games), we see that his primary position was center field throughout the entire time period in question. So now we need to find a new factor to consider. 
@@ -51,11 +58,11 @@ After decoding the primary positions (0 indicates that no single position was pl
 To help us figure out which factors may be helpful to consider, let's get a little intuition about the year by year stats. Let's look at 4 major measures of batting performance: BA, OBP, OPS, and slugging percentage. 
 
 ```{r}
-stats_by_season%>%
-  gather(key=type, value=value, BA, OBP, OPS, SLG)%>%  #We have to gether the BA, OBP, OPS, and SLG in order to use them for faceting
-  ggplot(aes(x=as.numeric(Year), y=value)) + 
-    geom_point(aes(color=Tm))+ 
-    facet_wrap(~ type,ncol=2)+ 
+stats_by_season %>%
+  gather(key = type, value = value, BA, OBP, OPS, SLG) %>%  #We have to gether the BA, OBP, OPS, and SLG in order to use them for faceting
+  ggplot(aes(x = as.numeric(Year), y = value)) + 
+    geom_point(aes(color = Tm))+ 
+    facet_wrap(~ type, ncol = 2)+ 
     stat_smooth() + xlab("Year")
 
 ```
@@ -72,42 +79,71 @@ Another pattern we may notice is that while the decline was most noticable betwe
 ###Peak ages of MLB players
 To see how age may be playing a role in performance, let's get data from more MLB players to compare McCutchen's performance by age.
 ```{r}
-id <- "10PK1Kne2e2shLERd3y19DGU7VcXhPmcB" # google file ID
-allPlayers<-read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download", id)) 
+id <- 
+  "10PK1Kne2e2shLERd3y19DGU7VcXhPmcB" # google file ID
+allPlayers <-
+  read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download", id)) 
 glimpse(allPlayers)
 ```
 
 In order to find age, we are also going to need the birth years of players, which we can use this next dataset for.
 ```{r}
-playerIDs <- read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download",'187HgaVhV0-ADZm5GY4ZhnVDjw2Fzrc8F'))
+playerIDs <- 
+  read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download", '187HgaVhV0-ADZm5GY4ZhnVDjw2Fzrc8F'))
 glimpse(playerIDs)
-translateIDs<- playerIDs[,c("playerID","birthYear", "nameFirst", "nameLast")]
+translateIDs <- 
+  playerIDs[,c("playerID","birthYear", "nameFirst", "nameLast")]
 ```
 
 Now let's merge our new datasets.
 ```{r}
-merged_player_data <- allPlayers %>% left_join(translateIDs, by="playerID")
-merged_player_data<- merged_player_data %>% mutate(age = yearID - birthYear) %>% mutate(BA = H /(AB - BB)) %>% mutate(OBP = (BB + H)/AB)#adds age, batting average, and on base percentage.
+merged_player_data <- allPlayers %>%
+  left_join(translateIDs, by="playerID")
+merged_player_data<- merged_player_data %>%  # Merge step
+  mutate(age = yearID - birthYear) %>%  # Adds age 
+  mutate(BA = H /(AB - BB)) %>%  # Adds BA
+  mutate(OBP = (BB + H)/AB)  # Adds OBP
 ```
 
 Now it would be nice to have a way of normalizing the BA and OBP. Let's do this by taking each BA and OBP as a percentage of that player's maximum over all seasons they played. From here on out, we will also enforce that a player must have at least 20 at bats in a season to be included.
 ```{r}
-maxOBP<-merged_player_data%>% filter(AB>20)%>%group_by(playerID)%>%summarise(maxobp=max(OBP))
-maxBA<-merged_player_data%>% filter(AB>20)%>%group_by(playerID)%>%summarise(maxba=max(BA))
+maxOBP<-merged_player_data %>%
+  filter(AB>20) %>%
+  group_by(playerID) %>%
+  summarise(maxobp = max(OBP))
+maxBA<-merged_player_data %>%
+  filter(AB > 20) %>%
+  group_by(playerID) %>%
+  summarise(maxba = max(BA))
 
-merged_player_data<-merged_player_data%>%left_join(maxOBP, by="playerID")%>%left_join(maxBA, by="playerID")%>%mutate(BApercent = as.numeric(BA)/as.numeric(maxba))%>%mutate(OBPpercent = as.numeric(OBP)/as.numeric(maxobp))
+merged_player_data <-
+  merged_player_data %>%
+  left_join(maxOBP, by = "playerID") %>%
+  left_join(maxBA, by = "playerID") %>%
+  mutate(BApercent = as.numeric(BA) / as.numeric(maxba)) %>%
+  mutate(OBPpercent = as.numeric(OBP) / as.numeric(maxobp))
 ```
 
 Now let's see the distribution over all players. Since McCutchen only played from ages 18-32 so far, we can limit our the ages to just those.
 
 ```{r}
-merged_player_data%>% filter(AB > 20) %>% group_by(age) %>%filter(age>17 & age<33) %>% summarise(se=sd(BApercent, na.rm = TRUE) / sqrt(n()), BApercent=mean(BApercent, na.rm=TRUE), OBPpercent=mean(OBPpercent, na.rm=TRUE))  %>%ggplot(aes(x = age, y = OBPpercent)) +
-  geom_smooth() +
-  geom_errorbar(aes(x = age, 
-                    ymax = BApercent+2*se , 
-                    ymin = BApercent-2*se , width=0.5)) +
-  geom_point(aes(x=age, y=BApercent)) +
-  theme(axis.text.x = element_text(angle = 30, hjust=1)) + ylim(.6, .9)
+merged_player_data %>% 
+  filter(AB > 20) %>% 
+  group_by(age) %>%
+  filter(age > 17 & age < 33) %>% 
+  summarise(se = sd(BApercent, na.rm = TRUE) / sqrt(n()),
+            BApercent = mean(BApercent, na.rm = TRUE),
+            OBPpercent = mean(OBPpercent, na.rm = TRUE)) %>%
+  ggplot(aes(x = age, y = OBPpercent)) +
+    geom_smooth() +
+    geom_errorbar(aes(x = age, 
+                      ymax = BApercent + 2 * se,
+                      ymin = BApercent - 2 * se,
+                      width = 0.5)) +
+  geom_point(aes(x = age, 
+                 y = BApercent)) +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1)) +
+  ylim(.6, .9)
 ```
 This looks similar to pattern we observed from McCutchen, but it would be helpful to actually show them side-by-side.
 
@@ -115,29 +151,64 @@ This looks similar to pattern we observed from McCutchen, but it would be helpfu
 
 Now we want to merge our McCutchen data and the general data so that we can compare them. In the process, it would be a good idea to rename all our McCutchen data to make it clear which columns deal with him individually and which ones are overall. (Translation: I tried it without renaming the columns then monumentally confused myself, so we're just going to rename them.)
 ```{r}
-stats_by_season<-stats_by_season%>%mutate(Age = as.numeric(Age))
+stats_by_season <- 
+  stats_by_season %>%
+  mutate(Age = as.numeric(Age))
+
 #loop over column names and change each to add an M (i.e. make the dataframe WAY easier to read)
-stats_by_season_renamed<-stats_by_season
+stats_by_season_renamed <-
+  stats_by_season
 
 for (colname in colnames(stats_by_season)){
-  colnames(stats_by_season_renamed)[colnames(stats_by_season)==colname]<-paste(colname,'_M', sep='')
+  colnames(stats_by_season_renamed)[colnames(stats_by_season) == colname] <- 
+    paste(colname, '_M', sep = '')
 }
 
-merged_player_data_with_McCutchen <- merged_player_data %>% filter(AB > 20) %>% group_by(age)%>% summarise(se=sd(BApercent, na.rm = TRUE) / sqrt(n()), BApercent=mean(BApercent, na.rm=TRUE), seOBP = sd(OBPpercent, na.rm = TRUE), OBPpercent=mean(OBPpercent, na.rm=TRUE))  %>% left_join(stats_by_season_renamed, by=c('age'='Age_M'))
+merged_player_data_with_McCutchen <- 
+  merged_player_data %>% 
+  filter(AB > 20) %>% 
+  group_by(age) %>% 
+  summarise(se = sd(BApercent, na.rm = TRUE) / sqrt(n()),
+            BApercent = mean(BApercent, na.rm=TRUE),
+            seOBP = sd(OBPpercent, na.rm = TRUE),
+            OBPpercent=mean(OBPpercent, na.rm = TRUE))  %>% 
+  left_join(stats_by_season_renamed, by = c('age'='Age_M'))
 
-merged_player_data_with_McCutchen<-merged_player_data_with_McCutchen%>% mutate(BApercent_M = as.numeric(BA_M)/.327, OBPpercent_M = as.numeric(OBP_M)/.410)
+merged_player_data_with_McCutchen<-
+  merged_player_data_with_McCutchen %>%
+  mutate(BApercent_M = as.numeric(BA_M)/.327,
+         OBPpercent_M = as.numeric(OBP_M)/.410)
 ```
 
 Now that we have merged teh tables,let's see how the two distrbutions compare. In the below plots, we see MCutchen's performance (one for OBP and one for BA) in blue and the distribution of the average of MLB players in red. The solid black lines show the time he joined and left the Pirates and the dotted line shows the 2014 season, which is where we would expect the peak to be. Note that in defining the maximum value for McCutchen, only statistics in his time with the Pirates were considered.
 ```{r}
-merged_player_data_with_McCutchen %>% mutate(difference = BApercent_M-BApercent)%>%filter(age>17 & age<33) %>%ggplot()  +
-  geom_point(aes(x=age, y=BApercent), color='red') + geom_point(aes(x=age, y=BApercent_M),color='blue')+ stat_smooth(aes(x=age, y=BApercent), color='red', se=FALSE)+ stat_smooth(aes(x=age, y=BApercent_M), se=FALSE) + geom_vline(xintercept=22)+ geom_vline(xintercept=31)+ geom_vline(xintercept=27, linetype="dotted")+ ylim(.7,1)
-  theme(axis.text.x = element_text(angle = 30, hjust=1))
+merged_player_data_with_McCutchen %>% 
+  mutate(difference = BApercent_M-BApercent) %>%
+  filter(age > 17 & age < 33) %>%
+  ggplot()  +
+    geom_point(aes(x = age, y = BApercent), color = 'red') +
+    geom_point(aes(x = age, y = BApercent_M), color = 'blue') +
+    stat_smooth(aes(x = age, y = BApercent), color = 'red', se = FALSE) + 
+    stat_smooth(aes(x = age, y = BApercent_M), se = FALSE) +
+    geom_vline(xintercept = 22) +
+    geom_vline(xintercept = 31) + 
+    geom_vline(xintercept = 27, linetype = "dotted") + 
+    ylim(.7, 1)
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
 ```
 ```{r}
-merged_player_data_with_McCutchen %>% mutate(difference = OBPpercent_M-OBPpercent)%>%filter(age>17 & age<33) %>%ggplot()  +
-  geom_point(aes(x=age, y=OBPpercent), color='red') + geom_point(aes(x=age, y=OBPpercent_M), color='blue')+ stat_smooth(aes(x=age, y=OBPpercent), color='red', se=FALSE)+ stat_smooth(aes(x=age, y=OBPpercent_M), se=FALSE)+ geom_vline(xintercept=22)+ geom_vline(xintercept=31)+ geom_vline(xintercept=27, linetype="dotted")
-  theme(axis.text.x = element_text(angle = 30, hjust=1))
+merged_player_data_with_McCutchen %>% 
+  mutate(difference = OBPpercent_M - OBPpercent) %>%
+  filter(age > 17 & age < 33) %>%
+  ggplot()  +
+    geom_point(aes(x = age, y = OBPpercent), color = 'red') +
+    geom_point(aes(x = age, y = OBPpercent_M), color = 'blue') +
+    stat_smooth(aes(x = age, y = OBPpercent), color = 'red', se = FALSE) + 
+    stat_smooth(aes(x = age, y = OBPpercent_M), se = FALSE) +
+    geom_vline(xintercept = 22) + 
+    geom_vline(xintercept = 31)  + 
+    geom_vline(xintercept = 27, linetype = "dotted")
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
 ```
 
 It appears that the peaks are similar, but there is a lot more variation in McCutchen's data and the peak in the general data is not particularly distinct. One way to see the general distribution more distinctly is to instead just consier the peak years of players, which the below plots do. Again, a vertical dotted line is plotted at the equivalence of McCutchen's 2014 season.
@@ -150,11 +221,21 @@ It appears that the peaks are similar, but there is a lot more variation in McCu
 ```
 
 ```{r}
-merged_player_data%>%filter(AB>20)%>%filter(OBP==maxobp)%>%ggplot()+geom_histogram(aes(age), fill='cyan', alpha=.5)+ geom_vline(xintercept=27, linetype="dotted")
+merged_player_data %>%
+  filter(AB > 20) %>%
+  filter(OBP == maxobp) %>%
+  ggplot() +
+    geom_histogram(aes(age), fill = 'cyan', alpha = .5) +
+    geom_vline(xintercept = 27, linetype = "dotted")
 ```
 
 ```{r}
-merged_player_data%>%filter(AB>20)%>%filter(BA==maxba)%>%ggplot()+geom_histogram(aes(age), fill='cyan', alpha=.5)+ geom_vline(xintercept=27, linetype="dotted")
+merged_player_data %>%
+  filter(AB > 20) %>%
+  filter(BA == maxba) %>%
+  ggplot() +
+    geom_histogram(aes(age), fill = 'cyan', alpha = .5) +
+  geom_vline(xintercept = 27, linetype = "dotted")
 ```
 According to both of these, 2014-2015 would mark right around the average peak time, which further confirms age as a significant factor. 
 
