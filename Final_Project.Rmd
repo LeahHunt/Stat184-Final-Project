@@ -47,7 +47,7 @@ But this isn't the end of our tidy data problems! The last two columns are also 
 
 ```{r}
 stats_by_season %>%
-  mutate(Pos = ifelse(grepl("\\*.", Pos), substring(Pos, 2, 2), 0)) %>%#Makes use of the fact that primary positions are listed first and are unique if they exist
+  mutate(Pos = ifelse(grepl("\\*.", Pos), substring(Pos, 2, 2), 0)) %>%  # Makes use of the fact that primary positions are                                                                                listed first and are unique if they exist
   ggplot(aes(x = Year, y = Pos)) + 
     geom_point() 
 ```
@@ -59,7 +59,7 @@ To help us figure out which factors may be helpful to consider, let's get a litt
 
 ```{r}
 stats_by_season %>%
-  gather(key = type, value = value, BA, OBP, OPS, SLG) %>%  #We have to gether the BA, OBP, OPS, and SLG in order to use them for faceting
+  gather(key = type, value = value, BA, OBP, OPS, SLG) %>%   # We have to gather the BA, OBP, OPS, and SLG in order to use them                                                                for faceting
   ggplot(aes(x = as.numeric(Year), y = value)) + 
     geom_point(aes(color = Tm))+ 
     facet_wrap(~ type, ncol = 2)+ 
@@ -72,7 +72,7 @@ We notice that all four of these have similar shape, so it is fair to assume tha
 
 Many Pirates fans could have predicted the basic shape these graphs would take, but the question we are interested in is why they all seem to peak around 2014. To the casual observer, there is one obvious thing that changed between 2014 and 2015: he cut his hair and obviously then lost his mojo because of it. As appealing as this explanation may be, let's see if we can find any other factors that may attribute to the changes in performance.
 
-The most obvious factor that may come to mind is that he also got married between these two seasons. While this factor will not be considered in this analysis, in other analyses, marriage has not been shown to correlate with better statistics (see: ![http://ftp.iza.org/dp5695.pdf]).
+The most obvious factor that may come to mind is that he also got married between these two seasons. While this factor will not be considered in this analysis, in other analyses, marriage has not been shown to correlate with worse performance (see: ![http://ftp.iza.org/dp5695.pdf]).
 
 Another pattern we may notice is that while the decline was most noticable between 2014 and 2015, there is actually a more general curving trend that just peaks in 2014. This may lead us to consider age as a factor to the performance drop. 
 
@@ -212,13 +212,6 @@ merged_player_data_with_McCutchen %>%
 ```
 
 It appears that the peaks are similar, but there is a lot more variation in McCutchen's data and the peak in the general data is not particularly distinct. One way to see the general distribution more distinctly is to instead just consier the peak years of players, which the below plots do. Again, a vertical dotted line is plotted at the equivalence of McCutchen's 2014 season.
-
-```{r}
-#maxYearsBA<-merged_player_data%>% filter(AB>20)%>%group_by(playerID)%>%summarise(maxobp=max(OBP))
-#maxYearsOBP<-merged_player_data%>% filter(AB>20)%>%group_by(playerID)%>%summarise(maxba=max(BA))
-
-#merged_player_data<-merged_player_data%>%left_join(maxOBP, by="playerID")%>%left_join(maxBA, by="playerID")%>%mutate(BApercent = as.numeric(BA)/as.numeric(maxba))%>%mutate(OBPpercent = as.numeric(OBP)/as.numeric(maxobp))
-```
 
 ```{r}
 merged_player_data %>%
